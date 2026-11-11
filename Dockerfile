@@ -1,9 +1,4 @@
 FROM php:8.4-apache
-
-# Pastikan hanya satu MPM (mpm_prefork) yang aktif dengan aman
-RUN a2dismod mpm_event mpm_worker || true \
-    && a2enmod mpm_prefork
-
 # Install dependencies system dan PostgreSQL dev packages
 RUN apt-get update && apt-get install -y \
     libpng-dev \
@@ -43,4 +38,15 @@ RUN composer install --no-dev --optimize-autoloader
 RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache \
     && chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache
 
+# Buat entrypoint script untuk membersihkan konflik MPM secara paksa saat runtime container hidup
+RUN echo '#!/bin/bash' > /usr/local/bin/entrypoint.sh \
+    && echo 'rm -f /etc/apache2/mods-enabled/mpm_event.* /etc/apache2/mods-enabled/mpm_worker.*' >> /usr/local/bin/entrypoint.sh \
+    && echo 'ln -sf /etc/apache2/mods-available/mpm_prefork.load /etc/apache2/mods-enabled/' >> /usr/local/bin/entrypoint.sh \
+    && echo 'ln -sf /etc/apache2/mods-available/mpm_prefork.conf /etc/apache2/mods-enabled/' >> /usr/local/bin/entrypoint.sh \
+    && echo 'exec apache2-foreground' >> /usr/local/bin/entrypoint.sh \
+    && chmod +x /usr/local/bin/entrypoint.sh
+
 EXPOSE 80
+
+# Jalankan entrypoint setiap kali container mulai
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
