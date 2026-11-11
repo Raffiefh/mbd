@@ -1,12 +1,12 @@
 FROM php:8.4-apache
 
-# Paksa hapus konfigurasi mpm_event/worker yang aktif dan aktifkan mpm_prefork
+# Bersihkan MPM lain dan pastikan mpm_prefork aktif
 RUN rm -f /etc/apache2/mods-enabled/mpm_event.load \
     /etc/apache2/mods-enabled/mpm_event.conf \
     /etc/apache2/mods-enabled/mpm_worker.load \
     /etc/apache2/mods-enabled/mpm_worker.conf \
-    && ln -s /etc/apache2/mods-available/mpm_prefork.load /etc/apache2/mods-enabled/ \
-    && ln -s /etc/apache2/mods-available/mpm_prefork.conf /etc/apache2/mods-enabled/
+    && ln -sf /etc/apache2/mods-available/mpm_prefork.load /etc/apache2/mods-enabled/ \
+    && ln -sf /etc/apache2/mods-available/mpm_prefork.conf /etc/apache2/mods-enabled/
 
 # Install dependencies system dan PostgreSQL dev packages
 RUN apt-get update && apt-get install -y \
