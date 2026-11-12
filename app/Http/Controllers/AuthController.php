@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Hash; 
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Cache;
 
 class AuthController extends Controller
 {
@@ -99,6 +100,10 @@ class AuthController extends Controller
         }
         // ====================================================
 
+        if ($jenisAkunId == 2) {
+            Cache::put("user_profile_{$akun->id_akun}", $akun, now()->addHours(24));
+        }
+
         return response()->json([
             'message' => 'Akun berhasil diverifikasi dan diaktifkan!',
             'access_token' => $tokenResult,
@@ -155,14 +160,20 @@ class AuthController extends Controller
     // 4. Logout
     public function logout(Request $request)
     {
-        $request->user()->currentAccessToken()->delete();
+        $user = $request->user();
+        if ($user) {
+            if ($user->jenis_akun_id_jenis_akun == 2) {
+                Cache::forget("user_profile_{$user->id_akun}");
+            }
+            $user->currentAccessToken()->delete();
+        }
 
         return response()->json([
             'message' => 'Anda berhasil keluar',
         ], 200);
     }
 
-    // 5. Login Tahap 1
+    // 5. Login (Bypass OTP untuk Regular User dan Generate Cache)
     public function login(Request $request)
     {
         $request->validate([
@@ -170,7 +181,7 @@ class AuthController extends Controller
             'password' => 'required|string',
         ]);
 
-        $akun = Akun::where('email', $request->email)->first();
+        $akun = Akun::with('jenisAkun')->where('email', $request->email)->first();
 
         if (!$akun || !Hash::check($request->password, $akun->password)) {
             return response()->json(['message' => 'Email atau password salah!'], 401);
@@ -181,7 +192,26 @@ class AuthController extends Controller
             return response()->json(['message' => 'Akun belum aktif atau belum diverifikasi! Silakan daftar ulang.'], 403);
         }
 
-        // Generate OTP baru untuk sesi login
+        // === USER REGULAR (ID 2): Bypass OTP dan langsung login + caching ke dashboard ===
+        if ($akun->jenis_akun_id_jenis_akun == 2) {
+            $akun->update(['token' => 0]);
+
+            $tokenResult = $akun->createToken('nongkrongid_auth_token')->plainTextToken;
+
+            // Cache profil regular user selama 24 jam untuk respon instan
+            Cache::put("user_profile_{$akun->id_akun}", $akun, now()->addHours(24));
+
+            return response()->json([
+                'message' => 'Login berhasil! Selamat datang kembali.',
+                'access_token' => $tokenResult,
+                'token_type' => 'Bearer',
+                'redirect_to' => '/dashboard/user',
+                'requires_otp' => false,
+                'data' => $akun
+            ], 200);
+        }
+
+        // Generate OTP baru untuk sesi login role selain regular user (Mitra / Admin / Sponsor)
         $otpLogin = rand(100000, 999999);
 
         $akun->update([
@@ -193,7 +223,8 @@ class AuthController extends Controller
 
         return response()->json([
             'message' => 'Kredensial benar! Kode OTP untuk login telah dikirim ke email Anda.',
-            'email' => $akun->email
+            'email' => $akun->email,
+            'requires_otp' => true,
         ], 200);
     }
 
@@ -237,6 +268,10 @@ class AuthController extends Controller
             $redirectTo = '/dashboard/sponsor';
         }
         // ==============================================================
+
+        if ($jenisAkunId == 2) {
+            Cache::put("user_profile_{$akun->id_akun}", $akun, now()->addHours(24));
+        }
 
         return response()->json([
             'message' => 'Login berhasil! Selamat datang kembali.',
@@ -286,10 +321,24 @@ class AuthController extends Controller
         ], 200);
     }
 
-    // 7. Melihat Data Akun Sendiri (sekaligus cek kedaluwarsa status Mitra Premium)
+    // 7. Melihat Data Akun Sendiri (sekaligus cek kedaluwarsa status Mitra Premium & Caching Regular User)
     public function getProfile(Request $request)
     {
-        $akun = $request->user()->load('jenisAkun');
+        $user = $request->user();
+
+        // Regular User (ID 2): Ambil dari cache untuk respons instan
+        if ($user->jenis_akun_id_jenis_akun == 2) {
+            $akun = Cache::remember("user_profile_{$user->id_akun}", now()->addHours(24), function () use ($user) {
+                return $user->load('jenisAkun');
+            });
+
+            return response()->json([
+                'message' => 'Data profil berhasil diambil.',
+                'data' => $akun
+            ], 200);
+        }
+
+        $akun = $user->load('jenisAkun');
 
         // Logika pengecekan masa aktif untuk Mitra Premium (ID 4, 5, 6)
         if (in_array($akun->jenis_akun_id_jenis_akun, [4, 5, 6])) {
@@ -345,10 +394,16 @@ class AuthController extends Controller
         }
 
         $akun->update($updateData);
+        $updatedAkun = $akun->load('jenisAkun');
+
+        // Perbarui cache profil jika akun adalah regular user
+        if ($akun->jenis_akun_id_jenis_akun == 2) {
+            Cache::put("user_profile_{$akun->id_akun}", $updatedAkun, now()->addHours(24));
+        }
 
         return response()->json([
             'message' => 'Profil berhasil diperbarui!',
-            'data' => $akun->load('jenisAkun')
+            'data' => $updatedAkun
         ], 200);
     }
 

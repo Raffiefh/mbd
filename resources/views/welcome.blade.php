@@ -382,12 +382,12 @@
     </div>
  
    <script>
-        // Cek Sesi Auto-Login saat halaman dimuat (Sesi 20 Hari)
+        // Cek Sesi Auto-Login saat halaman dimuat (Sesi 20 Hari & Caching Regular User)
         document.addEventListener("DOMContentLoaded", function() {
             const token = localStorage.getItem('access_token');
-            if (token) {
-                // Arahkan otomatis jika token aktif (bisa disesuaikan rutenya)
-                // window.location.href = '/dashboard'; 
+            const jenisAkunId = localStorage.getItem('jenis_akun_id');
+            if (token && String(jenisAkunId) === '2') {
+                window.location.href = '/dashboard/user'; 
             }
         });
  
@@ -568,6 +568,12 @@
             if (res.ok) {
                 showPopupMessage('otpRegErrorMsg', res.data.message, true);
                 localStorage.setItem('access_token', res.data.access_token);
+                if (res.data.data && res.data.data.jenis_akun_id_jenis_akun) {
+                    localStorage.setItem('jenis_akun_id', res.data.data.jenis_akun_id_jenis_akun);
+                }
+                if (res.data.data) {
+                    localStorage.setItem('user_cache', JSON.stringify(res.data.data));
+                }
                 setTimeout(() => {
                     window.location.href = res.data.redirect_to;
                 }, 1200); 
@@ -619,6 +625,20 @@
             btn.textContent = 'Masuk dan lanjutkan';
  
             if (res.ok) {
+                // Jika regular user (OTP di-bypass, access_token langsung didapat)
+                if (res.data.access_token) {
+                    localStorage.setItem('access_token', res.data.access_token);
+                    if (res.data.data && res.data.data.jenis_akun_id_jenis_akun) {
+                        localStorage.setItem('jenis_akun_id', res.data.data.jenis_akun_id_jenis_akun);
+                    }
+                    if (res.data.data) {
+                        localStorage.setItem('user_cache', JSON.stringify(res.data.data));
+                    }
+                    // Redirect langsung ke dashboard tanpa jeda / modal OTP
+                    window.location.href = res.data.redirect_to || '/dashboard/user';
+                    return;
+                }
+
                 document.querySelector('#loginModal form').reset(); // Bersihkan form
                 switchModal('loginModal', 'otpLoginModal');
                 showPopupMessage('otpLoginErrorMsg', res.data.message, true);
@@ -649,6 +669,9 @@
                 // Simpan ID jenis akun ke localStorage untuk validasi role/isolasi halaman
                 if (res.data.data && res.data.data.jenis_akun_id_jenis_akun) {
                     localStorage.setItem('jenis_akun_id', res.data.data.jenis_akun_id_jenis_akun);
+                }
+                if (res.data.data) {
+                    localStorage.setItem('user_cache', JSON.stringify(res.data.data));
                 }
  
                 setTimeout(() => {

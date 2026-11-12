@@ -420,6 +420,18 @@
         let currentProfileData = null;
 
         function loadProfileData() {
+            // Caching: Tampilkan profil langsung dari local cache jika tersedia (instan)
+            const cachedUser = localStorage.getItem('user_cache');
+            if (cachedUser) {
+                try {
+                    const parsed = JSON.parse(cachedUser);
+                    currentProfileData = parsed;
+                    renderProfileView(parsed);
+                } catch (e) {
+                    console.error("Gagal membaca cache user:", e);
+                }
+            }
+
             const token = localStorage.getItem('access_token');
             if (!token) return;
 
@@ -427,10 +439,20 @@
                 method: 'GET',
                 headers: { 'Authorization': 'Bearer ' + token, 'Accept': 'application/json' }
             })
-            .then(res => res.json())
+            .then(async res => {
+                if (res.status === 401) {
+                    localStorage.removeItem('access_token');
+                    localStorage.removeItem('jenis_akun_id');
+                    localStorage.removeItem('user_cache');
+                    window.location.href = "/";
+                    return null;
+                }
+                return res.json();
+            })
             .then(res => {
-                if (res.data) {
+                if (res && res.data) {
                     currentProfileData = res.data;
+                    localStorage.setItem('user_cache', JSON.stringify(res.data));
                     renderProfileView(res.data);
                 }
             })
@@ -594,6 +616,7 @@
             })
             .then(data => {
                 currentProfileData = data.data;
+                localStorage.setItem('user_cache', JSON.stringify(data.data));
                 cancelEditMode();
                 showAccountAlert('success', data.message || 'Profil berhasil diperbarui!');
             })
@@ -642,12 +665,14 @@
             .then(data => {
                 localStorage.removeItem('access_token');
                 localStorage.removeItem('jenis_akun_id');
+                localStorage.removeItem('user_cache');
                 window.location.href = "/";
             })
             .catch(err => {
                 console.error("Gagal melakukan logout:", err);
                 localStorage.removeItem('access_token');
                 localStorage.removeItem('jenis_akun_id');
+                localStorage.removeItem('user_cache');
                 window.location.href = "/";
             });
         }
