@@ -444,7 +444,9 @@
             document.getElementById('inputPassword').value = '';
             document.getElementById('inputPassword').placeholder = '••••••••';
             
-            const imgPath = data.path_gambar ? `/images/profile/${data.path_gambar}` : '/images/profile/default.png';
+            const imgPath = (data.path_gambar && data.path_gambar !== 'default.png')
+                ? "{{ rtrim(config('filesystems.disks.s3.url'), '/') }}/profile_images/" + data.path_gambar
+                : '/images/profile/default.png';
             document.getElementById('profilePreview').src = imgPath;
 
             let jenisAkunNama = 'User';

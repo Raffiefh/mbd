@@ -6,6 +6,7 @@ use App\Models\Toko;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 
 /**
  * Detail toko (popup), rating & ulasan, favorit, dan pencatatan klik (analitik).
@@ -76,7 +77,7 @@ class TokoDetailController extends Controller
         if ($toko->promo && ($toko->promo->deskripsi_promo || $toko->promo->path_promo)) {
             $promo = [
                 'deskripsi' => $toko->promo->deskripsi_promo,
-                'gambar'    => $toko->promo->path_promo ? asset('storage/' . ltrim($toko->promo->path_promo, '/')) : null,
+                'gambar'    => $toko->promo->path_promo ? Storage::disk('s3')->url(ltrim($toko->promo->path_promo, '/')) : null,
                 'aktif'     => (int) $toko->promo->keadaan_promo === 1,
             ];
         }
@@ -85,7 +86,7 @@ class TokoDetailController extends Controller
             'id_toko'        => $toko->id_toko,
             'nama_toko'      => $toko->nama_toko,
             'deskripsi_toko' => $toko->deskripsi_toko,
-            'gambar'         => $toko->gambarToko->map(fn ($g) => asset('storage/' . ltrim($g->path_gambar, '/')))->values(),
+            'gambar'         => $toko->gambarToko->map(fn ($g) => Storage::disk('s3')->url(ltrim($g->path_gambar, '/')))->values(),
             'kategori'       => $toko->kategori->pluck('nama_kategori')->values(),
             'lat'            => $toko->lattitude,
             'lng'            => $toko->longtitude,
@@ -226,7 +227,7 @@ class TokoDetailController extends Controller
             return [
                 'id_toko'          => $t->id_toko,
                 'nama_toko'        => $t->nama_toko,
-                'gambar_utama'     => ($g = $t->gambarToko->first()) ? asset('storage/' . ltrim($g->path_gambar, '/')) : null,
+                'gambar_utama'     => ($g = $t->gambarToko->first()) ? Storage::disk('s3')->url(ltrim($g->path_gambar, '/')) : null,
                 'jam_buka'         => $t->jam_buka,
                 'jam_tutup'        => $t->jam_tutup,
                 'harga_mulai'      => $t->harga_mulai,

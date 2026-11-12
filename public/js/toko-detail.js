@@ -74,7 +74,7 @@
             box.innerHTML = closeBtn + `
               <div class="p-8 pt-12 text-center">
                 <div class="text-5xl mb-4">🤩</div>
-                <p class="font-extrabold text-lg text-[#0B1B3A] leading-snug">Detail lengkapnya dapat bergabung pada website kami 🤩</p>
+                <p class="font-extrabold text-lg text-[#0B1B3A] leading-snug">Detail lengkapnya dapat bergabung pada website kami ⭐ </p>
                 <button type="button" data-td="close" class="mt-6 px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold">Tutup</button>
               </div>`;
             show();

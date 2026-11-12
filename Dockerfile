@@ -1,50 +1,47 @@
-FROM php:8.4-apache
+FROM dunglas/frankenphp:1-php8.4-bookworm AS base
 
-# Paksa hapus konfigurasi mpm_event/worker yang aktif dan aktifkan mpm_prefork
-RUN rm -f /etc/apache2/mods-enabled/mpm_event.load \
-    /etc/apache2/mods-enabled/mpm_event.conf \
-    /etc/apache2/mods-enabled/mpm_worker.load \
-    /etc/apache2/mods-enabled/mpm_worker.conf \
-    && ln -s /etc/apache2/mods-available/mpm_prefork.load /etc/apache2/mods-enabled/ \
-    && ln -s /etc/apache2/mods-available/mpm_prefork.conf /etc/apache2/mods-enabled/
+RUN cp "$PHP_INI_DIR/php.ini-production" "$PHP_INI_DIR/php.ini" \
+    && install-php-extensions intl zip pdo_pgsql
 
-# Install dependencies system dan PostgreSQL dev packages
-RUN apt-get update && apt-get install -y \
-    libpng-dev \
-    libonig-dev \
-    libxml2-dev \
-    zip \
-    unzip \
-    git \
-    curl \
-    libpq-dev
+WORKDIR /app
 
-RUN apt-get clean && rm -rf /var/lib/apt/lists/*
+FROM base AS dependencies
 
-# Install PHP extensions
-RUN docker-php-ext-install pdo pdo_pgsql pgsql mbstring exif pcntl bcmath gd
+COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+COPY composer.json composer.lock ./
+RUN composer install \
+    --no-dev \
+    --no-interaction \
+    --no-progress \
+    --no-scripts \
+    --optimize-autoloader \
+    --prefer-dist
 
-# Copy Composer binary
-COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
+COPY . .
+RUN mkdir -p \
+        storage/framework/cache \
+        storage/framework/sessions \
+        storage/framework/views \
+        bootstrap/cache \
+    && composer dump-autoload --no-dev --classmap-authoritative
 
-WORKDIR /var/www/html
+FROM base AS runtime
 
-# Copy seluruh file project
-COPY . /var/www/html
+COPY --from=dependencies --chown=www-data:www-data /app /app
+COPY --chown=www-data:www-data Caddyfile /etc/frankenphp/Caddyfile
 
-# Ubah Document Root Apache ke folder public Laravel
-ENV APACHE_DOCUMENT_ROOT /var/www/html/public
-RUN sed -ri -e 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/sites-available/*.conf
-RUN sed -ri -e 's!/var/www/!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/apache2.conf /etc/apache2/conf-available/*.conf
+RUN setcap CAP_NET_BIND_SERVICE=+eip /usr/local/bin/frankenphp \
+    && chown -R www-data:www-data /config/caddy /data/caddy
 
-# Aktifkan mod_rewrite Apache
-RUN a2enmod rewrite
+# Nilai bawaan saja; nilai di Vercel > Environment Variables yang dipakai saat berjalan
+ENV PORT=80 \
+    APP_ENV=production \
+    APP_DEBUG=false \
+    LOG_CHANNEL=stderr \
+    CACHE_STORE=database \
+    SESSION_DRIVER=cookie \
+    QUEUE_CONNECTION=sync
 
-# Jalankan composer install
-RUN composer install --no-dev --optimize-autoloader
+USER www-data
 
-# Berikan hak akses ke folder storage dan cache
-RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache \
-    && chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache
-
-EXPOSE 80
+CMD ["frankenphp", "run", "--config", "/etc/frankenphp/Caddyfile"]

@@ -6,6 +6,7 @@ use App\Models\Toko;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 
 class KatalogController extends Controller
 {
@@ -110,7 +111,7 @@ class KatalogController extends Controller
             return [
                 'id_toko'       => $t->id_toko,
                 'nama_toko'     => $t->nama_toko,
-                'gambar_utama'  => $gambar ? asset('storage/' . ltrim($gambar->path_gambar, '/')) : null,
+                'gambar_utama'  => $gambar ? Storage::disk('s3')->url(ltrim($gambar->path_gambar, '/')) : null,
                 'jam_buka'      => $t->jam_buka,
                 'jam_tutup'     => $t->jam_tutup,
                 'harga_mulai'   => $t->harga_mulai,

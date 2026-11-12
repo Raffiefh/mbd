@@ -13,6 +13,9 @@ class Akun extends Model
     public $timestamps = false;
     protected $guarded = [];
 
+    // Jangan pernah ikut terkirim di respons JSON (register, profil, login, dll.)
+    protected $hidden = ['password', 'token'];
+
     public function jenisAkun()
     {
         return $this->belongsTo(JenisAkun::class, 'jenis_akun_id_jenis_akun', 'id_jenis_akun');

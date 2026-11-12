@@ -790,7 +790,9 @@
             
             const preview = document.getElementById('profilePreview');
             if(preview) {
-                preview.src = data.path_gambar ? `/images/profile/${data.path_gambar}` : '/images/profile/default.png';
+                preview.src = (data.path_gambar && data.path_gambar !== 'default.png')
+                    ? "{{ rtrim(config('filesystems.disks.s3.url'), '/') }}/profile_images/" + data.path_gambar
+                    : '/images/profile/default.png';
             }
 
             let jenisAkunNama = 'Mitra';

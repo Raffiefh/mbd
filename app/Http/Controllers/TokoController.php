@@ -128,7 +128,7 @@ class TokoController extends Controller
             if ($request->filled('deskripsi_promo') || $request->hasFile('jalur_promo')) {
                 $pathPromo = null;
                 if ($request->hasFile('jalur_promo')) {
-                    $pathPromo = $request->file('jalur_promo')->store('promo_images', 'public');
+                    $pathPromo = $request->file('jalur_promo')->store('promo_images', 's3');
                 }
 
                 $promo = DetailPromo::create([
@@ -259,8 +259,8 @@ class TokoController extends Controller
                 if ($promo) {
                     $pathPromo = $promo->path_promo; 
                     if ($request->hasFile('jalur_promo')) {
-                        if ($pathPromo && Storage::disk('public')->exists($pathPromo)) {
-                            Storage::disk('public')->delete($pathPromo);
+                        if ($pathPromo && Storage::disk('s3')->exists($pathPromo)) {
+                            Storage::disk('s3')->delete($pathPromo);
                         }
                         $pathPromo = $request->file('jalur_promo')->store('promo_images', 's3');
                     }

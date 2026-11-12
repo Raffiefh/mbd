@@ -7,6 +7,7 @@ use App\Mail\SendOtpMail;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Hash; 
+use Illuminate\Support\Facades\Storage;
 
 class AuthController extends Controller
 {
@@ -338,7 +339,7 @@ class AuthController extends Controller
             $file = $request->file('path_gambar');
             $filename = time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
             
-            $file->move(public_path('images/profile'), $filename);
+            Storage::disk('s3')->putFileAs('profile_images', $file, $filename);
             
             $updateData['path_gambar'] = $filename;
         }

@@ -271,7 +271,7 @@ function esc(value) {
 function storageUrl(path) {
     if (!path) return '';
     if (/^https?:\/\//i.test(path)) return path;
-    return '/storage/' + String(path).replace(/^\/+/, '');
+    return "{{ rtrim(config('filesystems.disks.s3.url'), '/') }}/" + String(path).replace(/^\/+/, '');
 }
  
 function formatRupiah(n) { return 'Rp ' + Number(n || 0).toLocaleString('id-ID'); }

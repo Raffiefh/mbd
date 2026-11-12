@@ -6,6 +6,7 @@ use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 
 /**
  * Pengajuan & penayangan Iklan (khusus Mitra Premium 4,5,6).
@@ -102,7 +103,7 @@ class IklanController extends Controller
             'status_label'    => self::LABEL[$st] ?? $st,
             'tanggal_mulai'   => $r->{$this->c('mulai')},
             'tanggal_berakhir' => $r->{$this->c('akhir')},
-            'media_url'       => $path ? asset('storage/' . ltrim($path, '/')) : null,
+            'media_url'       => $path ? Storage::disk('s3')->url(ltrim($path, '/')) : null,
             'tipe'            => in_array($ext, ['mp4', 'webm'], true) ? 'video' : 'gambar',
             'url'             => $r->{$this->c('snap')},
             'alasan'          => $st === self::ST_TOLAK ? self::ALASAN_TOLAK : null,
